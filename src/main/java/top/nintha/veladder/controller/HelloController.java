@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import top.nintha.veladder.annotations.RequestBody;
 import top.nintha.veladder.annotations.RequestMapping;
 import top.nintha.veladder.annotations.RestController;
-import top.nintha.veladder.entity.BeanReq;
+import top.nintha.veladder.entity.MockUser;
 
 import java.util.*;
 
@@ -17,6 +17,11 @@ public class HelloController {
     @RequestMapping("hello/world")
     public String helloWorld() {
         return "Hello world";
+    }
+
+    @RequestMapping("hello/void")
+    public void helloVoid() {
+        log.info("call void");
     }
 
     @RequestMapping("echo")
@@ -38,7 +43,7 @@ public class HelloController {
         return ctx.request().params().entries();
     }
 
-    @RequestMapping("query/list")
+    @RequestMapping("query/tags")
     public List<Map.Entry<String, String>> queryArray(List<Long> ids, TreeSet<String> names, LinkedList rawList, RoutingContext ctx) {
         log.info("ids={}", ids);
         log.info("names={}", names);
@@ -47,14 +52,21 @@ public class HelloController {
     }
 
     @RequestMapping("query/bean")
-    public BeanReq queryBean(BeanReq req) {
+    public MockUser queryBean(MockUser req) {
         log.info("req={}", req);
         return req;
     }
 
     @RequestMapping(value = "post/body", method = HttpMethod.POST)
-    public BeanReq postRequestBody(@RequestBody BeanReq req) {
+    public MockUser postRequestBody(@RequestBody MockUser req) {
         log.info("req={}", req);
         return req;
+    }
+
+    @RequestMapping("hello/path/variable/:token/:id")
+    public List<Map.Entry<String, String>> helloPathVariable(String token, Long id, RoutingContext ctx) {
+        log.info("token={}", token);
+        log.info("id={}", id);
+        return ctx.request().params().entries();
     }
 }

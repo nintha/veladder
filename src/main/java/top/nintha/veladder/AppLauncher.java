@@ -1,6 +1,9 @@
 package top.nintha.veladder;
 
 import com.google.common.primitives.Primitives;
+import io.reactivex.Flowable;
+import io.reactivex.Single;
+import io.reactivex.functions.Consumer;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
@@ -24,6 +27,7 @@ import top.nintha.veladder.annotations.RequestBody;
 import top.nintha.veladder.annotations.RequestMapping;
 import top.nintha.veladder.annotations.RestController;
 import top.nintha.veladder.controller.HelloController;
+import top.nintha.veladder.controller.HelloRxController;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
@@ -42,6 +46,7 @@ public class AppLauncher extends AbstractVerticle {
 
         Router router = Router.router(vertx);
         routerMapping(new HelloController(), router);
+        routerMapping(new HelloRxController(), router);
 
         server.requestHandler(router).listen(port, ar -> {
             if (ar.succeeded()) {
@@ -126,8 +131,22 @@ public class AppLauncher extends AbstractVerticle {
                         }
                     }
                     Object result = MethodHandles.lookup().unreflect(method).bindTo(annotatedBean).invokeWithArguments(argValues);
+
                     // Write to the response and end it
-                    response.end(result instanceof CharSequence ? result.toString() : Json.encode(result));
+                    Consumer<Object> responseEnd = x -> response.end(x instanceof CharSequence ? x.toString() : Json.encode(x));
+                    if (result instanceof Single) {
+                        ((Single) result).subscribe(responseEnd, err -> {
+                            log.error("request error, {}::{} ", clazz.getName(), method.getName(), err);
+                            HashMap<String, Object> map = new HashMap<>();
+                            map.put("message", "system error");
+                            ctx.response().end(Json.encode(map));
+                        });
+                    } else if (result instanceof Flowable) {
+                        throw new UnsupportedOperationException("not support Flowable, maybe use Single instead");
+                    } else {
+                        responseEnd.accept(result);
+                    }
+
                 } catch (Throwable e) {
                     log.error("request error, {}::{} ", clazz.getName(), method.getName(), e);
                     HashMap<String, Object> result = new HashMap<>();
@@ -151,20 +170,21 @@ public class AppLauncher extends AbstractVerticle {
 
     /**
      * 解析简单类型以及对应的集合或数组类型
-     * @param params 所有请求参数
-     * @param paramType 参数类型
-     * @param paramName 参数名称
+     *
+     * @param allParams             所有请求参数
+     * @param paramType             参数类型
+     * @param paramName             参数名称
      * @param genericParameterTypes 泛型化参数类型
      * @return
      * @throws Throwable
      */
-    private Object parseSimpleTypeOrArrayOrCollection(MultiMap params, Class<?> paramType, String paramName, Type genericParameterTypes) throws Throwable {
+    private Object parseSimpleTypeOrArrayOrCollection(MultiMap allParams, Class<?> paramType, String paramName, Type genericParameterTypes) throws Throwable {
         // Array type
         if (paramType.isArray()) {
             // 数组元素类型
             Class<?> componentType = paramType.getComponentType();
 
-            List<String> values = params.getAll(paramName);
+            List<String> values = allParams.getAll(paramName);
             Object array = Array.newInstance(componentType, values.size());
             for (int j = 0; j < values.size(); j++) {
                 Array.set(array, j, parseSimpleType(values.get(j), componentType));
@@ -173,26 +193,29 @@ public class AppLauncher extends AbstractVerticle {
         }
         // Collection type
         else if (Collection.class.isAssignableFrom(paramType)) {
-            return parseCollectionType(params.getAll(paramName), genericParameterTypes);
+            return parseCollectionType(allParams.getAll(paramName), genericParameterTypes);
         }
         // String and primitive type
         else if (isStringOrPrimitiveType(paramType)) {
-            return parseSimpleType(params.get(paramName), paramType);
+            return parseSimpleType(allParams.get(paramName), paramType);
         }
 
         return null;
     }
 
+    /**
+     * 判断是否为字符串或基础类型以及对应的包装类型
+     */
     private boolean isStringOrPrimitiveType(Class<?> targetClass) {
         return targetClass == String.class || Primitives.allWrapperTypes().contains(Primitives.wrap(targetClass));
     }
 
     /**
-     * parse String and primitive type
+     * 处理字符串，基础类型以及对应的包装类型
      */
     @SuppressWarnings("unchecked")
     private <T> T parseSimpleType(String value, Class<T> targetClass) throws Throwable {
-        if(StringUtils.isBlank(value)) return null;
+        if (StringUtils.isBlank(value)) return null;
 
         Class<?> wrapType = Primitives.wrap(targetClass);
         if (Primitives.allWrapperTypes().contains(wrapType)) {
@@ -238,11 +261,18 @@ public class AppLauncher extends AbstractVerticle {
         return coll;
     }
 
-    private Object parseBeanType(MultiMap params, Class<?> paramType) throws Throwable {
+    /**
+     * 解析实体对象
+     *
+     * @param allParams 所有参数
+     * @param paramType 实体参数类型
+     * @return 已经注入字段的实体对象
+     */
+    private Object parseBeanType(MultiMap allParams, Class<?> paramType) throws Throwable {
         Object bean = paramType.newInstance();
         Field[] fields = paramType.getDeclaredFields();
         for (Field field : fields) {
-            Object value = parseSimpleTypeOrArrayOrCollection(params, field.getType(), field.getName(), field.getGenericType());
+            Object value = parseSimpleTypeOrArrayOrCollection(allParams, field.getType(), field.getName(), field.getGenericType());
 
             field.setAccessible(true);
             field.set(bean, value);
@@ -251,6 +281,7 @@ public class AppLauncher extends AbstractVerticle {
     }
 
     public static void main(String[] args) {
+        System.setProperty("vertx.logger-delegate-factory-class-name", "io.vertx.core.logging.SLF4JLogDelegateFactory");
         Vertx vertx = Vertx.vertx();
         vertx.deployVerticle(new AppLauncher());
         log.info("Deploy Verticle....");

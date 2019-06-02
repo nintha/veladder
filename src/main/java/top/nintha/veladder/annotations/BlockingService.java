@@ -4,6 +4,6 @@ import java.lang.annotation.*;
 
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.FIELD})
-public @interface Autowired {
+@Target({ElementType.TYPE})
+public @interface BlockingService {
 }
