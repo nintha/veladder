@@ -1,4 +1,5 @@
-# veladder
+veladder
+
 A ladder for helping springer use vertx web
 
 spring风格的vertx web框架
@@ -61,22 +62,22 @@ public class HelloController {
 ```
 
 ## Spring-like Annotations
--[x] RestController
--[x] RequestMapping (目前不支持类上使用)
--[x] RequestBody
--[ ] GetMapping
--[ ] PostMapping
--[ ] PutMapping
--[ ] DeleteMapping
--[ ] PatchMapping
+- [x] RestController
+- [x] RequestMapping (目前不支持类上使用)
+- [x] RequestBody
+- [ ] GetMapping
+- [ ] PostMapping
+- [ ] PutMapping
+- [ ] DeleteMapping
+- [ ] PatchMapping
 
 ## RxJava2
--[ ] call from blocking service（把service转换成Verticle）
--[ ] upload file
+- [ ] call from blocking service（把service转换成Verticle）
+- [ ] upload file
 
 ## Database Access
--[ ] mysql(jpa/mybatis)
--[ ] mongodb
+- [ ] mysql(jpa/mybatis)
+- [ ] mongodb
 
 
 
