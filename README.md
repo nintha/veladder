@@ -73,7 +73,7 @@ public class HelloController {
 
 ## RxJava2
 - [ ] call from blocking service（把service转换成Verticle）
-- [ ] upload file
+- [x] upload file
 
 ## Database Access
 - [ ] mysql(jpa/mybatis)

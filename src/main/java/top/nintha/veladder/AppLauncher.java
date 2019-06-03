@@ -13,6 +13,7 @@ import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerResponse;
 import io.vertx.core.json.Json;
+import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
@@ -86,16 +87,15 @@ public class AppLauncher extends AbstractVerticle {
             MethodInfo methodInfo = ctMethod.getMethodInfo();
             CodeAttribute codeAttribute = methodInfo.getCodeAttribute();
             LocalVariableAttribute attribute = (LocalVariableAttribute) codeAttribute.getAttribute(LocalVariableAttribute.tag);
-            if (attribute == null) {
-                continue;
-            }
 
             Class<?>[] paramTypes = method.getParameterTypes();
             String[] paramNames = new String[ctMethod.getParameterTypes().length];
-            // 通过javassist获取方法形参，成员方法 0位变量是this
-            int pos = Modifier.isStatic(ctMethod.getModifiers()) ? 0 : 1;
-            for (int i = 0; i < paramNames.length; i++) {
-                paramNames[i] = attribute.variableName(i + pos);
+            if (attribute != null) {
+                // 通过javassist获取方法形参，成员方法 0位变量是this
+                int pos = Modifier.isStatic(ctMethod.getModifiers()) ? 0 : 1;
+                for (int i = 0; i < paramNames.length; i++) {
+                    paramNames[i] = attribute.variableName(i + pos);
+                }
             }
             String formatPath = requestPath.startsWith("/") ? requestPath : "/" + requestPath;
             log.info("[Router Mapping] {}({}) > {}, {}", method.getName(), formatPath, Arrays.toString(paramNames), Arrays.toString(paramTypes));
@@ -103,11 +103,12 @@ public class AppLauncher extends AbstractVerticle {
 
             Handler<RoutingContext> requestHandler = ctx -> {
                 try {
-                    HttpServerResponse response = ctx.response();
-                    response.putHeader(HttpHeaders.CONTENT_TYPE, "application/json;charset=UTF-8");
+
                     Object[] argValues = new Object[ctMethod.getParameterTypes().length];
                     MultiMap params = ctx.request().params();
                     Annotation[][] parameterAnnotations = method.getParameterAnnotations();
+                    Set<FileUpload> uploads = ctx.fileUploads();
+                    Map<String, FileUpload> uploadMap = uploads.stream().collect(Collectors.toMap(FileUpload::name, x -> x));
                     for (int i = 0; i < argValues.length; i++) {
                         Class<?> paramType = paramTypes[i];
                         // RequestBody数据解析
@@ -119,6 +120,8 @@ public class AppLauncher extends AbstractVerticle {
                         // special type
                         else if (paramType == RoutingContext.class) {
                             argValues[i] = ctx;
+                        } else if (paramType == FileUpload.class) {
+                            argValues[i] = uploadMap.get(paramNames[i]);
                         }
                         // Normal Type
                         else if (paramType.isArray() || Collection.class.isAssignableFrom(paramType) || isStringOrPrimitiveType(paramType)) {
@@ -130,17 +133,26 @@ public class AppLauncher extends AbstractVerticle {
                             argValues[i] = parseBeanType(params, paramType);
                         }
                     }
+                    HttpServerResponse response = ctx.response();
                     Object result = MethodHandles.lookup().unreflect(method).bindTo(annotatedBean).invokeWithArguments(argValues);
+                    if(!response.headWritten()){
+                        response.putHeader(HttpHeaders.CONTENT_TYPE, "application/json;charset=UTF-8");
+                    }
 
                     // Write to the response and end it
-                    Consumer<Object> responseEnd = x -> response.end(x instanceof CharSequence ? x.toString() : Json.encode(x));
+                    Consumer<Object> responseEnd = x -> {
+                        if (method.getReturnType() == void.class) return;
+
+                        response.end(x instanceof CharSequence ? x.toString() : Json.encode(x));
+                    };
+                    Consumer<Throwable> onError = err -> {
+                        log.error("request error, {}::{}", clazz.getName(), method.getName(), err);
+                        HashMap<String, Object> map = new HashMap<>();
+                        map.put("message", "system error");
+                        ctx.response().end(Json.encode(map));
+                    };
                     if (result instanceof Single) {
-                        ((Single) result).subscribe(responseEnd, err -> {
-                            log.error("request error, {}::{} ", clazz.getName(), method.getName(), err);
-                            HashMap<String, Object> map = new HashMap<>();
-                            map.put("message", "system error");
-                            ctx.response().end(Json.encode(map));
-                        });
+                        ((Single) result).subscribe(responseEnd, onError);
                     } else if (result instanceof Flowable) {
                         throw new UnsupportedOperationException("not support Flowable, maybe use Single instead");
                     } else {
