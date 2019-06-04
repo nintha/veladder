@@ -28,14 +28,12 @@ public class HelloRxController {
 
     @RequestMapping(value = "rx/users/default", method = HttpMethod.GET)
     public Single<MockUser> findDefaultUser() {
-        CompletableFuture<MockUser> userFuture = CompletableFuture.supplyAsync(mockUserDao::findDefaultUser);
-        return Singles.fromCompletableFuture(userFuture);
+        return Singles.supplyAsync(mockUserDao::findDefaultUser);
     }
 
     @RequestMapping(value = "rx/users/exception", method = HttpMethod.GET)
     public Single<String> exceptionAction() {
-        CompletableFuture<String> userFuture = CompletableFuture.supplyAsync(mockUserDao::blockingActionWithException);
-        return Singles.fromCompletableFuture(userFuture);
+        return Singles.supplyAsync(mockUserDao::blockingActionWithException);
     }
 
     @RequestMapping(value = "rx/file/upload", method = HttpMethod.POST)

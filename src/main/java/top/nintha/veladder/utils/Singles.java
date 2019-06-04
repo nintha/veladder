@@ -4,6 +4,7 @@ import io.reactivex.Single;
 import io.vertx.core.Future;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 public class Singles {
     /**
@@ -27,6 +28,10 @@ public class Singles {
                 emitter.onError(ar.cause());
             }
         }));
+    }
+
+    public static <T> Single<T> supplyAsync(Supplier<T> supplier){
+        return fromCompletableFuture(CompletableFuture.supplyAsync(supplier));
     }
 
 }

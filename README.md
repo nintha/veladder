@@ -72,8 +72,8 @@ public class HelloController {
 - [ ] PatchMapping
 
 ## RxJava2
-- [ ] call from blocking service（把service转换成Verticle）
 - [x] upload file
+- [x] download file
 
 ## Database Access
 - [ ] mysql(jpa/mybatis)
