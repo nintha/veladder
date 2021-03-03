@@ -1,10 +1,8 @@
-veladder
+# veladder
 
 A ladder for helping springer use vertx web
 
 spring风格的vertx web框架
-
-
 
 ## Get start
 
@@ -79,5 +77,7 @@ public class HelloController {
 - [ ] mysql(jpa/mybatis)
 - [ ] mongodb
 
+## Other
+- [x] package scan
 
 

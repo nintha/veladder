@@ -25,7 +25,6 @@ public class HelloRxController {
         return Single.just("Hello world");
     }
 
-
     @RequestMapping(value = "rx/users/default", method = HttpMethod.GET)
     public Single<MockUser> findDefaultUser() {
         return Singles.supplyAsync(mockUserDao::findDefaultUser);

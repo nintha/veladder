@@ -29,6 +29,7 @@ import top.nintha.veladder.annotations.RequestMapping;
 import top.nintha.veladder.annotations.RestController;
 import top.nintha.veladder.controller.HelloController;
 import top.nintha.veladder.controller.HelloRxController;
+import top.nintha.veladder.utils.ClassScanUtil;
 
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
@@ -39,19 +40,23 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class AppLauncher extends AbstractVerticle {
-    private final static int port = 8080;
+    private final static int PORT = 8080;
+    private final static String SCAN_PACKAGE = "top.nintha.veladder.controller";
 
     @Override
     public void start() throws Exception {
         HttpServer server = vertx.createHttpServer();
 
         Router router = Router.router(vertx);
-        routerMapping(new HelloController(), router);
-        routerMapping(new HelloRxController(), router);
+        Set<Class<?>> classes = ClassScanUtil.scanByAnnotation(SCAN_PACKAGE, RestController.class);
+        for (Class<?> cls : classes) {
+            Object controller = cls.getConstructor().newInstance();
+            routerMapping(controller, router);
+        }
 
-        server.requestHandler(router).listen(port, ar -> {
+        server.requestHandler(router).listen(PORT, ar -> {
             if (ar.succeeded()) {
-                log.info("HTTP Server is listening on {}", port);
+                log.info("HTTP Server is listening on {}", PORT);
             } else {
                 log.error("Failed to run HTTP Server", ar.cause());
             }
@@ -135,7 +140,7 @@ public class AppLauncher extends AbstractVerticle {
                     }
                     HttpServerResponse response = ctx.response();
                     Object result = MethodHandles.lookup().unreflect(method).bindTo(annotatedBean).invokeWithArguments(argValues);
-                    if(!response.headWritten()){
+                    if (!response.headWritten()) {
                         response.putHeader(HttpHeaders.CONTENT_TYPE, "application/json;charset=UTF-8");
                     }
 
