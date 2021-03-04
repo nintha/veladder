@@ -51,3 +51,11 @@ jar {
         attributes 'Main-Class': 'top.nintha.veladder.AppLauncher'
     }
 }
+
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
