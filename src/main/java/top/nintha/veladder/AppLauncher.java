@@ -4,8 +4,10 @@ import com.google.common.primitives.Primitives;
 import io.reactivex.Flowable;
 import io.reactivex.Single;
 import io.reactivex.functions.Consumer;
-import io.vertx.core.*;
-import io.vertx.core.dns.AddressResolverOptions;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Handler;
+import io.vertx.core.MultiMap;
+import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
@@ -27,7 +29,6 @@ import top.nintha.veladder.annotations.RequestMapping;
 import top.nintha.veladder.annotations.RestController;
 import top.nintha.veladder.utils.ClassScanUtil;
 
-import javax.sound.sampled.Port;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -49,6 +50,13 @@ public class AppLauncher extends AbstractVerticle {
         HttpServer server = vertx.createHttpServer();
 
         Router router = Router.router(vertx);
+        router.errorHandler(500, rc -> {
+            Throwable failure = rc.failure();
+            if (failure != null) {
+                log.error("[Router Error Handler]", failure);
+            }
+        });
+
         Set<Class<?>> classes = ClassScanUtil.scanByAnnotation(SCAN_PACKAGE, RestController.class);
         for (Class<?> cls : classes) {
             Object controller = cls.getConstructor().newInstance();
@@ -113,6 +121,7 @@ public class AppLauncher extends AbstractVerticle {
                 try {
                     Object[] argValues = new Object[ctMethod.getParameterTypes().length];
                     MultiMap params = ctx.request().params();
+
                     Annotation[][] parameterAnnotations = method.getParameterAnnotations();
                     Set<FileUpload> uploads = ctx.fileUploads();
                     Map<String, FileUpload> uploadMap = uploads.stream().collect(Collectors.toMap(FileUpload::name, x -> x));
