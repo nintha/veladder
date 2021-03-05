@@ -4,10 +4,8 @@ import com.google.common.primitives.Primitives;
 import io.reactivex.Flowable;
 import io.reactivex.Single;
 import io.reactivex.functions.Consumer;
-import io.vertx.core.AbstractVerticle;
-import io.vertx.core.Handler;
-import io.vertx.core.MultiMap;
-import io.vertx.core.Vertx;
+import io.vertx.core.*;
+import io.vertx.core.dns.AddressResolverOptions;
 import io.vertx.core.http.HttpHeaders;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.HttpServer;
@@ -27,10 +25,9 @@ import org.apache.commons.lang3.StringUtils;
 import top.nintha.veladder.annotations.RequestBody;
 import top.nintha.veladder.annotations.RequestMapping;
 import top.nintha.veladder.annotations.RestController;
-import top.nintha.veladder.controller.HelloController;
-import top.nintha.veladder.controller.HelloRxController;
 import top.nintha.veladder.utils.ClassScanUtil;
 
+import javax.sound.sampled.Port;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -40,8 +37,12 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class AppLauncher extends AbstractVerticle {
-    private final static int PORT = 8080;
     private final static String SCAN_PACKAGE = "top.nintha.veladder.controller";
+    private final int port;
+
+    public AppLauncher(int port) {
+        this.port = port;
+    }
 
     @Override
     public void start() throws Exception {
@@ -54,9 +55,9 @@ public class AppLauncher extends AbstractVerticle {
             routerMapping(controller, router);
         }
 
-        server.requestHandler(router).listen(PORT, ar -> {
+        server.requestHandler(router).listen(port, ar -> {
             if (ar.succeeded()) {
-                log.info("HTTP Server is listening on {}", PORT);
+                log.info("HTTP Server is listening on {}", port);
             } else {
                 log.error("Failed to run HTTP Server", ar.cause());
             }
@@ -83,7 +84,9 @@ public class AppLauncher extends AbstractVerticle {
         CtClass cc = classPool.get(clazz.getName());
         Method[] methods = clazz.getDeclaredMethods();
         for (Method method : methods) {
-            if (!method.isAnnotationPresent(RequestMapping.class)) continue;
+            if (!method.isAnnotationPresent(RequestMapping.class)) {
+                continue;
+            }
 
             RequestMapping methodAnno = method.getAnnotation(RequestMapping.class);
             String requestPath = methodAnno.value();
@@ -108,7 +111,6 @@ public class AppLauncher extends AbstractVerticle {
 
             Handler<RoutingContext> requestHandler = ctx -> {
                 try {
-
                     Object[] argValues = new Object[ctMethod.getParameterTypes().length];
                     MultiMap params = ctx.request().params();
                     Annotation[][] parameterAnnotations = method.getParameterAnnotations();
@@ -146,9 +148,11 @@ public class AppLauncher extends AbstractVerticle {
 
                     // Write to the response and end it
                     Consumer<Object> responseEnd = x -> {
-                        if (method.getReturnType() == void.class) return;
-
-                        response.end(x instanceof CharSequence ? x.toString() : Json.encode(x));
+                        if (method.getReturnType() == void.class) {
+                            response.end();
+                        } else {
+                            response.end(x instanceof CharSequence ? x.toString() : Json.encode(x));
+                        }
                     };
                     Consumer<Throwable> onError = err -> {
                         log.error("request error, {}::{}", clazz.getName(), method.getName(), err);
@@ -173,13 +177,12 @@ public class AppLauncher extends AbstractVerticle {
             };
 
             // bind handler to router
-            HttpMethod[] httpMethods = methodAnno.method();
-            if (httpMethods.length == 0) {
+            if (methodAnno.method().length == 0) {
                 // 默认绑定全部HttpMethod
                 router.route(formatPath).handler(BodyHandler.create()).handler(requestHandler);
             } else {
-                for (HttpMethod httpMethod : httpMethods) {
-                    router.route(httpMethod, formatPath).handler(BodyHandler.create()).handler(requestHandler);
+                for (String m : methodAnno.method()) {
+                    router.route(HttpMethod.valueOf(m), formatPath).handler(BodyHandler.create()).handler(requestHandler);
                 }
             }
         }
@@ -232,7 +235,9 @@ public class AppLauncher extends AbstractVerticle {
      */
     @SuppressWarnings("unchecked")
     private <T> T parseSimpleType(String value, Class<T> targetClass) throws Throwable {
-        if (StringUtils.isBlank(value)) return null;
+        if (StringUtils.isBlank(value)) {
+            return null;
+        }
 
         Class<?> wrapType = Primitives.wrap(targetClass);
         if (Primitives.allWrapperTypes().contains(wrapType)) {
@@ -298,10 +303,8 @@ public class AppLauncher extends AbstractVerticle {
     }
 
     public static void main(String[] args) {
-        System.setProperty("vertx.disableDnsResolver", "true");
-        System.setProperty("vertx.logger-delegate-factory-class-name", "io.vertx.core.logging.SLF4JLogDelegateFactory");
         Vertx vertx = Vertx.vertx();
-        vertx.deployVerticle(new AppLauncher());
+        vertx.deployVerticle(new AppLauncher(8080));
         log.info("Deploy Verticle....");
     }
 }

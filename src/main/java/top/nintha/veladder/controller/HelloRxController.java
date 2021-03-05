@@ -18,24 +18,24 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @RestController
 public class HelloRxController {
-    private static final MockUserDao mockUserDao = new MockUserDao();
+    private static final MockUserDao MOCK_USER_DAO = new MockUserDao();
 
     @RequestMapping("rx/hello/world")
     public Single<String> helloWorld() {
         return Single.just("Hello world");
     }
 
-    @RequestMapping(value = "rx/users/default", method = HttpMethod.GET)
+    @RequestMapping(value = "rx/users/default", method = "GET")
     public Single<MockUser> findDefaultUser() {
-        return Singles.supplyAsync(mockUserDao::findDefaultUser);
+        return Singles.supplyAsync(MOCK_USER_DAO::findDefaultUser);
     }
 
-    @RequestMapping(value = "rx/users/exception", method = HttpMethod.GET)
+    @RequestMapping(value = "rx/users/exception", method = "GET")
     public Single<String> exceptionAction() {
-        return Singles.supplyAsync(mockUserDao::blockingActionWithException);
+        return Singles.supplyAsync(MOCK_USER_DAO::blockingActionWithException);
     }
 
-    @RequestMapping(value = "rx/file/upload", method = HttpMethod.POST)
+    @RequestMapping(value = "rx/file/upload", method = "GET")
     public Single<String> uploadFile(FileUpload file, RoutingContext ctx){
         if(file == null){
             log.error("upload failed");
@@ -60,7 +60,7 @@ public class HelloRxController {
         return Single.just(file.fileName());
     }
 
-    @RequestMapping(value = "rx/file/download", method = HttpMethod.GET)
+    @RequestMapping(value = "rx/file/download", method = "GET")
     public void downloadFile(RoutingContext ctx){
         ctx.response()
                 .putHeader(HttpHeaders.CONTENT_TYPE, "application/octet-stream")

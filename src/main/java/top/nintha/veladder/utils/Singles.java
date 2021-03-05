@@ -21,7 +21,7 @@ public class Singles {
     }
 
     public static <T> Single<T> fromVertxFuture(Future<T> future){
-        return Single.create(emitter -> future.setHandler(ar -> {
+        return Single.create(emitter -> future.onComplete(ar -> {
             if(ar.succeeded()){
                 emitter.onSuccess(ar.result());
             }else {

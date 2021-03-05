@@ -1,6 +1,5 @@
 package top.nintha.veladder.controller;
 
-import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.web.RoutingContext;
 import lombok.extern.slf4j.Slf4j;
 import top.nintha.veladder.annotations.RequestBody;
@@ -57,7 +56,7 @@ public class HelloController {
         return req;
     }
 
-    @RequestMapping(value = "post/body", method = HttpMethod.POST)
+    @RequestMapping(value = "post/body", method = "GET")
     public MockUser postRequestBody(@RequestBody MockUser req) {
         log.info("req={}", req);
         return req;
