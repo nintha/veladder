@@ -1,6 +1,5 @@
 package top.nintha.veladder.controller;
 
-import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.web.RoutingContext;
 import lombok.extern.slf4j.Slf4j;
 import top.nintha.veladder.annotations.RequestBody;
@@ -24,31 +23,45 @@ public class HelloController {
         log.info("call void");
     }
 
-    @RequestMapping("echo")
-    public Map<String, Object> echo(String message, Long token, int code, RoutingContext ctx) {
+    @RequestMapping("echo/text")
+    public String echoText(String text) {
+        return text;
+    }
+
+    @RequestMapping("echo/object")
+    public Map<String, Object> echoObject(String text, Long number, int code, RoutingContext ctx) {
         log.info("uri={}", ctx.request().absoluteURI());
 
-        log.info("message={}, token={}, code={}", message, token, code);
+        log.info("text={}, number={}, code={}", text, number, code);
         HashMap<String, Object> map = new HashMap<>();
-        map.put("message", message);
-        map.put("token", token);
+        map.put("text", text);
+        map.put("number", number);
         map.put("code", code);
         return map;
     }
 
     @RequestMapping(value = "hello/array")
-    public List<Map.Entry<String, String>> helloArray(long[] ids, String[] names, RoutingContext ctx) {
+    public HashMap<String, Object> helloArray(long[] ids, String[] names, RoutingContext ctx) {
         log.info("ids={}", Arrays.toString(ids));
         log.info("names={}", Arrays.toString(names));
-        return ctx.request().params().entries();
+
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("ids", ids);
+        map.put("names", names);
+        return map;
     }
 
-    @RequestMapping("query/tags")
-    public List<Map.Entry<String, String>> queryArray(List<Long> ids, TreeSet<String> names, LinkedList rawList, RoutingContext ctx) {
+    @RequestMapping("hello/list")
+    public HashMap<String, Object> helloList(List<Long> ids, TreeSet<String> names, LinkedList rawList, RoutingContext ctx) {
         log.info("ids={}", ids);
         log.info("names={}", names);
         log.info("rawList={}", rawList);
-        return ctx.request().params().entries();
+
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("ids", ids);
+        map.put("names", names);
+        map.put("rawList", rawList);
+        return map;
     }
 
     @RequestMapping("query/bean")
@@ -57,16 +70,16 @@ public class HelloController {
         return req;
     }
 
-    @RequestMapping(value = "post/body", method = HttpMethod.POST)
+    @RequestMapping(value = "post/body", method = "POST")
     public MockUser postRequestBody(@RequestBody MockUser req) {
         log.info("req={}", req);
         return req;
     }
 
     @RequestMapping("hello/path/variable/:token/:id")
-    public List<Map.Entry<String, String>> helloPathVariable(String token, Long id, RoutingContext ctx) {
+    public String helloPathVariable(String token, Long id, RoutingContext ctx) {
         log.info("token={}", token);
         log.info("id={}", id);
-        return ctx.request().params().entries();
+        return token + id;
     }
 }
